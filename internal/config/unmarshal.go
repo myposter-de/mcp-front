@@ -227,9 +227,9 @@ func (o *OAuthAuthConfig) UnmarshalJSON(data []byte) error {
 		Storage                         string          `json:"storage"`
 		FirestoreDatabase               string          `json:"firestoreDatabase,omitempty"`
 		FirestoreCollection             string          `json:"firestoreCollection,omitempty"`
-		DynamoDBTable                   string          `json:"dynamodbTable,omitempty"`
-		DynamoDBRegion                  string          `json:"dynamodbRegion,omitempty"`
-		DynamoDBEndpoint                string          `json:"dynamodbEndpoint,omitempty"`
+		DynamoDBTable                   json.RawMessage `json:"dynamodbTable,omitempty"`
+		DynamoDBRegion                  json.RawMessage `json:"dynamodbRegion,omitempty"`
+		DynamoDBEndpoint                json.RawMessage `json:"dynamodbEndpoint,omitempty"`
 		JWTSecret                       json.RawMessage `json:"jwtSecret"`
 		EncryptionKey                   json.RawMessage `json:"encryptionKey,omitempty"`
 		DangerouslyAcceptIssuerAudience bool            `json:"dangerouslyAcceptIssuerAudience,omitempty"`
@@ -249,9 +249,29 @@ func (o *OAuthAuthConfig) UnmarshalJSON(data []byte) error {
 	o.Storage = raw.Storage
 	o.FirestoreDatabase = raw.FirestoreDatabase
 	o.FirestoreCollection = raw.FirestoreCollection
-	o.DynamoDBTable = raw.DynamoDBTable
-	o.DynamoDBRegion = raw.DynamoDBRegion
-	o.DynamoDBEndpoint = raw.DynamoDBEndpoint
+
+	// DynamoDB fields support {"$env": "..."} references like other string fields
+	for _, f := range []struct {
+		name string
+		raw  json.RawMessage
+		dst  *string
+	}{
+		{"dynamodbTable", raw.DynamoDBTable, &o.DynamoDBTable},
+		{"dynamodbRegion", raw.DynamoDBRegion, &o.DynamoDBRegion},
+		{"dynamodbEndpoint", raw.DynamoDBEndpoint, &o.DynamoDBEndpoint},
+	} {
+		if f.raw == nil {
+			continue
+		}
+		parsed, err := ParseConfigValue(f.raw)
+		if err != nil {
+			return fmt.Errorf("parsing %s: %w", f.name, err)
+		}
+		if parsed.needsUserToken {
+			return fmt.Errorf("%s cannot be a user token reference", f.name)
+		}
+		*f.dst = parsed.value
+	}
 	o.DangerouslyAcceptIssuerAudience = raw.DangerouslyAcceptIssuerAudience
 
 	// RefreshTokenScopes: if set, refresh tokens are only issued when the
