@@ -227,6 +227,9 @@ func (o *OAuthAuthConfig) UnmarshalJSON(data []byte) error {
 		Storage                         string          `json:"storage"`
 		FirestoreDatabase               string          `json:"firestoreDatabase,omitempty"`
 		FirestoreCollection             string          `json:"firestoreCollection,omitempty"`
+		DynamoDBTable                   string          `json:"dynamodbTable,omitempty"`
+		DynamoDBRegion                  string          `json:"dynamodbRegion,omitempty"`
+		DynamoDBEndpoint                string          `json:"dynamodbEndpoint,omitempty"`
 		JWTSecret                       json.RawMessage `json:"jwtSecret"`
 		EncryptionKey                   json.RawMessage `json:"encryptionKey,omitempty"`
 		DangerouslyAcceptIssuerAudience bool            `json:"dangerouslyAcceptIssuerAudience,omitempty"`
@@ -246,6 +249,9 @@ func (o *OAuthAuthConfig) UnmarshalJSON(data []byte) error {
 	o.Storage = raw.Storage
 	o.FirestoreDatabase = raw.FirestoreDatabase
 	o.FirestoreCollection = raw.FirestoreCollection
+	o.DynamoDBTable = raw.DynamoDBTable
+	o.DynamoDBRegion = raw.DynamoDBRegion
+	o.DynamoDBEndpoint = raw.DynamoDBEndpoint
 	o.DangerouslyAcceptIssuerAudience = raw.DangerouslyAcceptIssuerAudience
 
 	// RefreshTokenScopes: if set, refresh tokens are only issued when the

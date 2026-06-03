@@ -281,9 +281,12 @@ type OAuthAuthConfig struct {
 	TokenTTL                time.Duration `json:"tokenTtl"`
 	RefreshTokenTTL         time.Duration `json:"refreshTokenTtl"`
 	RefreshTokenScopes      []string      `json:"refreshTokenScopes"`
-	Storage                 string        `json:"storage"`                       // "memory" or "firestore"
+	Storage                 string        `json:"storage"`                       // "memory", "firestore" or "dynamodb"
 	FirestoreDatabase       string        `json:"firestoreDatabase,omitempty"`   // Optional: Firestore database name
 	FirestoreCollection     string        `json:"firestoreCollection,omitempty"` // Optional: Firestore collection name
+	DynamoDBTable           string        `json:"dynamodbTable,omitempty"`       // Optional: DynamoDB table name (default: mcp_front)
+	DynamoDBRegion          string        `json:"dynamodbRegion,omitempty"`      // Optional: AWS region (default: SDK credential chain)
+	DynamoDBEndpoint        string        `json:"dynamodbEndpoint,omitempty"`    // Optional: custom endpoint (e.g. dynamodb-local)
 	JWTSecret               Secret        `json:"jwtSecret"`
 	EncryptionKey           Secret        `json:"encryptionKey"`
 	// DangerouslyAcceptIssuerAudience allows tokens with just the base issuer as audience

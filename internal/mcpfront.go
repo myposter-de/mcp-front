@@ -212,6 +212,33 @@ func setupStorage(ctx context.Context, cfg config.Config) (storage.Storage, erro
 			}
 			return firestoreStorage, nil
 		}
+
+		if oauthAuth.Storage == "dynamodb" {
+			table := oauthAuth.DynamoDBTable
+			if table == "" {
+				table = "mcp_front"
+			}
+			log.LogInfoWithFields("storage", "Using DynamoDB storage", map[string]any{
+				"table":    table,
+				"region":   oauthAuth.DynamoDBRegion,
+				"endpoint": oauthAuth.DynamoDBEndpoint,
+			})
+			encryptor, err := crypto.NewEncryptor([]byte(oauthAuth.EncryptionKey))
+			if err != nil {
+				return nil, fmt.Errorf("failed to create encryptor: %w", err)
+			}
+			dynamoStorage, err := storage.NewDynamoDBStorage(
+				ctx,
+				table,
+				oauthAuth.DynamoDBRegion,
+				oauthAuth.DynamoDBEndpoint,
+				encryptor,
+			)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create DynamoDB storage: %w", err)
+			}
+			return dynamoStorage, nil
+		}
 	}
 
 	log.LogInfoWithFields("storage", "Using in-memory storage", map[string]any{})
