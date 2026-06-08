@@ -65,6 +65,18 @@ func forwardSSEToBackend(ctx context.Context, w http.ResponseWriter, r *http.Req
 	}
 	defer resp.Body.Close()
 
+	// A 405 on the GET stream is the MCP streamable-HTTP spec's signal that the
+	// backend does not offer a server->client SSE stream (it's POST-only, e.g.
+	// Storyblok's hosted MCP). Pass it through so the client falls back to
+	// POST-only operation instead of treating the server as broken.
+	if resp.StatusCode == http.StatusMethodNotAllowed {
+		log.LogDebugWithFields("sse_proxy", "Backend declined SSE stream (405), passing through", map[string]any{
+			"url": backendURL,
+		})
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
 	// Check if we got an SSE response
 	contentType := resp.Header.Get("Content-Type")
 	mediaType, _, _ := mime.ParseMediaType(contentType)

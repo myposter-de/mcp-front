@@ -87,6 +87,30 @@ func TestForwardSSEToBackend(t *testing.T) {
 		assert.Contains(t, rec.Body.String(), "Backend is not an SSE server")
 	})
 
+	t.Run("backend returns 405 (POST-only streamable server)", func(t *testing.T) {
+		// A POST-only streamable-HTTP backend (e.g. Storyblok) returns 405 to
+		// the optional GET stream. The proxy must pass 405 through, not 503,
+		// so the client falls back to POST-only operation.
+		backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			_, _ = w.Write([]byte(`{"error": "Only POST is supported"}`))
+		}))
+		defer backend.Close()
+
+		config := &config.MCPClientConfig{
+			URL:     backend.URL,
+			Timeout: 5 * time.Second,
+		}
+
+		req := httptest.NewRequest(http.MethodGet, "/test/sse", nil)
+		rec := httptest.NewRecorder()
+
+		forwardSSEToBackend(context.Background(), rec, req, config)
+
+		assert.Equal(t, http.StatusMethodNotAllowed, rec.Code)
+	})
+
 	t.Run("backend connection failure", func(t *testing.T) {
 		config := &config.MCPClientConfig{
 			URL:     "http://localhost:1", // Invalid port
