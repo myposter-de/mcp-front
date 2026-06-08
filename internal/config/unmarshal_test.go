@@ -600,3 +600,39 @@ func TestMCPClientConfig_DirectTypeDefault(t *testing.T) {
 	assert.Equal(t, ServerTypeDirect, cfg.Type)
 	assert.False(t, cfg.IsAggregate())
 }
+
+func TestReexposeSSE_ParsingAndFrontend(t *testing.T) {
+	t.Run("streamable backend with reexposeSSE uses SSE frontend", func(t *testing.T) {
+		jsonStr := `{
+			"transportType": "streamable-http",
+			"url": "https://mcp.example.com/mcp",
+			"reexposeSSE": true,
+			"requiresUserToken": true,
+			"headers": {"Authorization": {"$userToken": "Bearer {{token}}"}}
+		}`
+		var c MCPClientConfig
+		err := json.Unmarshal([]byte(jsonStr), &c)
+		require.NoError(t, err)
+		assert.True(t, c.ReexposeSSE)
+		assert.True(t, c.UsesSSEFrontend(), "reexposeSSE backend should use the SSE frontend")
+		assert.False(t, c.IsStdio())
+
+		// Token still injected into headers for the per-session client
+		applied := c.ApplyUserToken("tok123")
+		assert.Equal(t, "Bearer tok123", applied.Headers["Authorization"])
+	})
+
+	t.Run("default remote backend does not use SSE frontend", func(t *testing.T) {
+		var c MCPClientConfig
+		err := json.Unmarshal([]byte(`{"transportType":"streamable-http","url":"https://x/mcp"}`), &c)
+		require.NoError(t, err)
+		assert.False(t, c.UsesSSEFrontend())
+	})
+
+	t.Run("reexposeSSE rejected on stdio transport", func(t *testing.T) {
+		var c MCPClientConfig
+		err := json.Unmarshal([]byte(`{"transportType":"stdio","command":"x","reexposeSSE":true}`), &c)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "reexposeSSE is only valid")
+	})
+}

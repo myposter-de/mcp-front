@@ -26,6 +26,7 @@ func (c *MCPClientConfig) UnmarshalJSON(data []byte) error {
 		Timeout            string                     `json:"timeout,omitempty"`
 		Options            *Options                   `json:"options,omitempty"`
 		RequiresUserToken  bool                       `json:"requiresUserToken,omitempty"`
+		ReexposeSSE        bool                       `json:"reexposeSSE,omitempty"`
 		UserAuthentication *UserAuthentication        `json:"userAuthentication,omitempty"`
 		ServiceAuths       []ServiceAuth              `json:"serviceAuths,omitempty"`
 		InlineConfig       json.RawMessage            `json:"inline,omitempty"`
@@ -48,6 +49,7 @@ func (c *MCPClientConfig) UnmarshalJSON(data []byte) error {
 	c.TransportType = raw.TransportType
 	c.Options = raw.Options
 	c.RequiresUserToken = raw.RequiresUserToken
+	c.ReexposeSSE = raw.ReexposeSSE
 	c.UserAuthentication = raw.UserAuthentication
 	c.ServiceAuths = raw.ServiceAuths
 	if len(c.ServiceAuths) > 0 {
@@ -104,6 +106,10 @@ func (c *MCPClientConfig) UnmarshalJSON(data []byte) error {
 
 	if c.TransportType == "" {
 		return fmt.Errorf("transportType is required")
+	}
+
+	if c.ReexposeSSE && c.TransportType != MCPClientTypeSSE && c.TransportType != MCPClientTypeStreamable {
+		return fmt.Errorf("reexposeSSE is only valid for sse or streamable-http transports, got %q", c.TransportType)
 	}
 
 	// Parse command if present

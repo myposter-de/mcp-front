@@ -407,7 +407,12 @@ func buildHTTPHandler(
 				return nil, nil, fmt.Errorf("failed to create inline handler for %s: %w", serverName, err)
 			}
 		} else {
-			if serverConfig.IsStdio() {
+			// Both stdio backends and remote backends that opted into
+			// ReexposeSSE are served through mcp-front's own per-session SSE
+			// server. The session manager and client are transport-agnostic, so
+			// the same machinery proxies a stdio subprocess or a remote
+			// streamable/SSE backend (with token-injected headers).
+			if serverConfig.UsesSSEFrontend() {
 				sseServer, mcpSrv, err = buildStdioSSEServer(serverName, baseURL, sessionManager)
 				if err != nil {
 					return nil, nil, fmt.Errorf("failed to create SSE server for %s: %w", serverName, err)

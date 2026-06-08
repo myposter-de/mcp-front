@@ -88,7 +88,7 @@ func (h *MCPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		serverConfig = serverConfig.ApplyUserToken(userToken)
 	}
 
-	if serverConfig.TransportType == config.MCPClientTypeStreamable {
+	if serverConfig.TransportType == config.MCPClientTypeStreamable && !serverConfig.ReexposeSSE {
 		switch r.Method {
 		case http.MethodPost:
 			log.LogInfoWithFields("mcp", "Handling streamable POST request", map[string]any{
@@ -146,13 +146,13 @@ func (h *MCPHandler) isMessageRequest(r *http.Request) bool {
 
 // handleSSERequest handles SSE connection requests for stdio servers
 func (h *MCPHandler) handleSSERequest(ctx context.Context, w http.ResponseWriter, r *http.Request, userEmail string, config *config.MCPClientConfig) {
-	if !config.IsStdio() {
-		// For non-stdio servers, handle normally
+	if !config.UsesSSEFrontend() {
+		// Native SSE backend: pass the SSE request straight through.
 		h.handleNonStdioSSERequest(ctx, w, r, userEmail, config)
 		return
 	}
 
-	// For stdio servers, use the shared SSE server
+	// stdio or ReexposeSSE backend: serve via the shared per-session SSE server
 	if h.sharedSSEServer == nil {
 		log.LogErrorWithFields("mcp", "No shared SSE server configured for stdio server", map[string]any{
 			"server": h.serverName,
@@ -182,7 +182,7 @@ func (h *MCPHandler) handleSSERequest(ctx context.Context, w http.ResponseWriter
 
 // handleMessageRequest handles message endpoint requests
 func (h *MCPHandler) handleMessageRequest(ctx context.Context, w http.ResponseWriter, r *http.Request, userEmail string, config *config.MCPClientConfig) {
-	if config.IsStdio() {
+	if config.UsesSSEFrontend() {
 		sessionID := r.URL.Query().Get("sessionId")
 		if sessionID == "" {
 			jsonrpc.WriteError(w, nil, jsonrpc.InvalidParams, "missing sessionId")

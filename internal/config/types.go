@@ -195,6 +195,16 @@ type MCPClientConfig struct {
 	HeadersNeedToken map[string]bool   `json:"-"` // Track which headers need token substitution
 	Timeout          time.Duration     `json:"timeout,omitempty"`
 
+	// ReexposeSSE, when set on a remote (sse/streamable-http) backend, makes
+	// mcp-front connect to the backend as an MCP client and re-serve it through
+	// its own SSE endpoint (/<name>/sse + /<name>/message) instead of passing
+	// client requests through unchanged. This is required for clients that only
+	// speak the legacy HTTP+SSE transport (e.g. Claude Desktop custom
+	// connectors) when the backend is streamable-HTTP only. Behaves like a
+	// stdio backend for routing, but the per-session client talks to the remote
+	// URL with the configured (token-injected) headers.
+	ReexposeSSE bool `json:"reexposeSSE,omitempty"`
+
 	Options *Options `json:"options,omitempty"`
 
 	// User token requirements
@@ -216,6 +226,14 @@ type MCPClientConfig struct {
 // IsStdio returns true if this is a stdio-based MCP server
 func (c *MCPClientConfig) IsStdio() bool {
 	return c.TransportType == MCPClientTypeStdio
+}
+
+// UsesSSEFrontend reports whether mcp-front should serve this backend through
+// its own per-session SSE server (GET /<name>/sse + POST /<name>/message)
+// rather than passing requests straight through. True for stdio backends and
+// for remote backends that opted into ReexposeSSE.
+func (c *MCPClientConfig) UsesSSEFrontend() bool {
+	return c.IsStdio() || c.ReexposeSSE
 }
 
 // IsAggregate returns true if this is an aggregate server
