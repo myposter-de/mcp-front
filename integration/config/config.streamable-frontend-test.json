@@ -1,0 +1,43 @@
+{
+  "version": "v0.0.1-DEV_EDITION_EXPECT_CHANGES",
+  "proxy": {
+    "baseURL": "http://localhost:8080",
+    "addr": ":8080",
+    "name": "mcp-front-streamable-frontend-test"
+  },
+  "mcpServers": {
+    "test-reexpose": {
+      "transportType": "streamable-http",
+      "url": "http://localhost:3002",
+      "reexposeSSE": true,
+      "serviceAuths": [
+        {
+          "type": "bearer",
+          "name": "svc",
+          "tokens": ["streamable-frontend-token"]
+        }
+      ]
+    },
+    "postgres": {
+      "transportType": "stdio",
+      "command": "docker",
+      "args": [
+        "run", "--rm", "-i", "--network", "host",
+        "-e", "POSTGRES_HOST=localhost",
+        "-e", "POSTGRES_PORT=15432",
+        "-e", "POSTGRES_DATABASE=testdb",
+        "-e", "POSTGRES_USER=testuser",
+        "-e", "POSTGRES_PASSWORD=testpass",
+        "us-central1-docker.pkg.dev/database-toolbox/toolbox/toolbox:latest",
+        "--stdio", "--prebuilt", "postgres"
+      ],
+      "serviceAuths": [
+        {
+          "type": "bearer",
+          "name": "svc",
+          "tokens": ["streamable-frontend-token"]
+        }
+      ]
+    }
+  }
+}

@@ -107,9 +107,15 @@ func HandleSessionRegistration(
 		return
 	}
 
+	// Client start and the ping loop must outlive the registering request (for
+	// Streamable HTTP that's the initialize POST), so bind them to the backend
+	// session's lifetime while keeping the request's context values.
+	discoveryCtx, cancel := context.WithCancel(context.WithoutCancel(sessionCtx))
+	context.AfterFunc(stdioSession.Context(), cancel)
+
 	// Discover and register capabilities from the stdio process
 	if err := stdioSession.DiscoverAndRegisterCapabilities(
-		sessionCtx,
+		discoveryCtx,
 		handler.mcpServer,
 		handler.userEmail,
 		handler.config.RequiresUserToken,

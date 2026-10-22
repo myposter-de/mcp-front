@@ -83,6 +83,7 @@ func createTestMCPHandler(serverName string, serverConfig *config.MCPClientConfi
 		info,
 		sessionManager,
 		nil, // sharedSSEServer
+		nil, // sharedStreamableServer
 		nil, // sharedMCPServer
 		func(ctx context.Context, userEmail, serviceName string, serviceConfig *config.MCPClientConfig) (string, error) {
 			if userEmail == "" {

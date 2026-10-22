@@ -292,6 +292,25 @@ func TestToolAdvertisementWithUserTokens(t *testing.T) {
 		assert.Contains(t, instructions["human"].(string), "token required", "Should have human instructions")
 	})
 
+	t.Run("ToolInvocationFailsWithoutTokenOverStreamableHTTP", func(t *testing.T) {
+		url := "http://localhost:8080/postgres/mcp"
+		sessionID := streamableInitialize(t, url, accessToken)
+
+		resp, out := streamableSend(t, url, accessToken, http.MethodPost, sessionID, map[string]any{
+			"jsonrpc": "2.0", "id": 2, "method": "tools/call",
+			"params": map[string]any{"name": "execute_sql", "arguments": map[string]any{"sql": "SELECT 1"}},
+		})
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+
+		content := out["result"].(map[string]any)["content"].([]any)
+		require.NotEmpty(t, content)
+		var errorData map[string]any
+		require.NoError(t, json.Unmarshal([]byte(content[0].(map[string]any)["text"].(string)), &errorData))
+		errorInfo := errorData["error"].(map[string]any)
+		assert.Equal(t, "token_required", errorInfo["code"])
+		assert.Contains(t, errorInfo["message"].(string), "/my/tokens")
+	})
+
 	t.Run("ToolInvocationSucceedsWithUserToken", func(t *testing.T) {
 		// Step 1: GET /my/tokens to extract CSRF token
 		jar, err := cookiejar.New(nil)

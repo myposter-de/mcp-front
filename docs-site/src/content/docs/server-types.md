@@ -42,6 +42,8 @@ The `command` must be in the system PATH. Both `args` and `env` support `{"$env"
 
 MCP Front spawns processes directly — for sandboxing, use containers or systemd isolation.
 
+Clients connect over SSE at `/<name>/sse` or over Streamable HTTP at `/<name>/mcp`. The same applies to remote backends with `"reexposeSSE": true`.
+
 ## SSE servers
 
 For MCP servers that expose a Server-Sent Events endpoint. MCP Front connects to the backend and proxies bidirectional messages.
