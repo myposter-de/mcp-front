@@ -41,8 +41,10 @@ type MCPHandler struct {
 	info            mcp.Implementation
 	sessionManager  SessionManager
 	sharedSSEServer *server.SSEServer // Shared SSE server for stdio servers
-	sharedMCPServer *server.MCPServer // Shared MCP server for stdio servers
-	getUserToken    UserTokenFunc     // Function to get formatted user tokens
+	// Streamable HTTP frontend over the same shared MCP server
+	sharedStreamableServer *server.StreamableHTTPServer
+	sharedMCPServer        *server.MCPServer // Shared MCP server for stdio servers
+	getUserToken           UserTokenFunc     // Function to get formatted user tokens
 }
 
 // NewMCPHandler creates a new MCP handler with session management
@@ -54,19 +56,21 @@ func NewMCPHandler(
 	info mcp.Implementation,
 	sessionManager SessionManager,
 	sharedSSEServer *server.SSEServer, // Shared SSE server for stdio servers
+	sharedStreamableServer *server.StreamableHTTPServer, // Streamable HTTP frontend for stdio servers
 	sharedMCPServer *server.MCPServer, // Shared MCP server for stdio servers
 	getUserToken UserTokenFunc,
 ) *MCPHandler {
 	return &MCPHandler{
-		serverName:      serverName,
-		serverConfig:    serverConfig,
-		storage:         storage,
-		setupBaseURL:    setupBaseURL,
-		info:            info,
-		sessionManager:  sessionManager,
-		sharedSSEServer: sharedSSEServer,
-		sharedMCPServer: sharedMCPServer,
-		getUserToken:    getUserToken,
+		serverName:             serverName,
+		serverConfig:           serverConfig,
+		storage:                storage,
+		setupBaseURL:           setupBaseURL,
+		info:                   info,
+		sessionManager:         sessionManager,
+		sharedSSEServer:        sharedSSEServer,
+		sharedStreamableServer: sharedStreamableServer,
+		sharedMCPServer:        sharedMCPServer,
+		getUserToken:           getUserToken,
 	}
 }
 
@@ -111,6 +115,8 @@ func (h *MCPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		default:
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		}
+	} else if serverConfig.UsesSSEFrontend() && h.isStreamableRequest(r) {
+		h.handleStreamableFrontend(ctx, w, r, userEmail, serverConfig)
 	} else {
 		if h.isMessageRequest(r) {
 			log.LogInfoWithFields("mcp", "Handling message request", map[string]any{
@@ -142,6 +148,70 @@ func (h *MCPHandler) isMessageRequest(r *http.Request) bool {
 	// Check if path ends with /message or contains /message?
 	path := r.URL.Path
 	return strings.HasSuffix(path, "/message") || strings.Contains(path, "/message?")
+}
+
+// isStreamableRequest checks if this targets the Streamable HTTP endpoint (/<name>/mcp)
+func (h *MCPHandler) isStreamableRequest(r *http.Request) bool {
+	return strings.HasSuffix(r.URL.Path, "/mcp")
+}
+
+// handleStreamableFrontend serves stdio and ReexposeSSE backends over Streamable
+// HTTP. It shares the per-session MCP server with the SSE frontend, so session
+// registration, per-user tokens and token_required errors behave the same.
+func (h *MCPHandler) handleStreamableFrontend(ctx context.Context, w http.ResponseWriter, r *http.Request, userEmail string, config *config.MCPClientConfig) {
+	if h.sharedStreamableServer == nil || h.sharedMCPServer == nil {
+		log.LogErrorWithFields("mcp", "No shared streamable server configured", map[string]any{
+			"server": h.serverName,
+		})
+		jsonwriter.WriteInternalServerError(w, "server misconfiguration")
+		return
+	}
+
+	// There are no server-initiated messages to stream; the spec allows 405 here.
+	if r.Method == http.MethodGet {
+		w.Header().Set("Allow", "POST, DELETE")
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	sessionHandler := NewSessionRequestHandler(h, userEmail, config, h.sharedMCPServer)
+	ctx = context.WithValue(ctx, SessionHandlerKey{}, sessionHandler)
+	r = r.WithContext(ctx)
+
+	sessionID := r.Header.Get(server.HeaderKeySessionID)
+	if sessionID != "" {
+		// mcp-go resolves sessions by ID alone. Only serve sessions this user
+		// owns; unknown or expired ones get 404 so the client re-initializes.
+		key := client.SessionKey{
+			UserEmail:  userEmail,
+			ServerName: h.serverName,
+			SessionID:  sessionID,
+		}
+		if _, ok := h.sessionManager.GetSession(key); !ok {
+			log.LogWarnWithFields("mcp", "Streamable session not found", map[string]any{
+				"sessionID": sessionID,
+				"server":    h.serverName,
+				"user":      userEmail,
+			})
+			jsonrpc.WriteErrorWithStatus(w, nil, jsonrpc.InvalidParams, "session not found", http.StatusNotFound)
+			return
+		}
+	}
+
+	log.LogInfoWithFields("mcp", "Serving streamable request for stdio server", map[string]any{
+		"server":    h.serverName,
+		"user":      userEmail,
+		"method":    r.Method,
+		"sessionID": sessionID,
+	})
+
+	h.sharedStreamableServer.ServeHTTP(w, r)
+
+	// mcp-go v0.43 doesn't unregister on DELETE; do it so the unregister hook
+	// tears down the backend session.
+	if r.Method == http.MethodDelete && sessionID != "" {
+		h.sharedMCPServer.UnregisterSession(ctx, sessionID)
+	}
 }
 
 // handleSSERequest handles SSE connection requests for stdio servers

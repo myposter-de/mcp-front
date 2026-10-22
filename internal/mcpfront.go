@@ -400,6 +400,7 @@ func buildHTTPHandler(
 		var err error
 		var mcpSrv *mcpserver.MCPServer
 		var sseServer *mcpserver.SSEServer
+		var streamableServer *mcpserver.StreamableHTTPServer
 
 		if serverConfig.TransportType == config.MCPClientTypeInline {
 			handler, err = buildInlineHandler(serverName, serverConfig)
@@ -411,9 +412,10 @@ func buildHTTPHandler(
 			// ReexposeSSE are served through mcp-front's own per-session SSE
 			// server. The session manager and client are transport-agnostic, so
 			// the same machinery proxies a stdio subprocess or a remote
-			// streamable/SSE backend (with token-injected headers).
+			// streamable/SSE backend (with token-injected headers). The same MCP
+			// server is also exposed over Streamable HTTP at /<name>/mcp.
 			if serverConfig.UsesSSEFrontend() {
-				sseServer, mcpSrv, err = buildStdioSSEServer(serverName, baseURL, sessionManager)
+				sseServer, streamableServer, mcpSrv, err = buildStdioSSEServer(serverName, baseURL, sessionManager)
 				if err != nil {
 					return nil, nil, fmt.Errorf("failed to create SSE server for %s: %w", serverName, err)
 				}
@@ -428,6 +430,7 @@ func buildHTTPHandler(
 				info,
 				sessionManager,
 				sseServers[serverName],
+				streamableServer,
 				mcpSrv,
 				userTokenService.GetUserToken,
 			)
@@ -526,7 +529,7 @@ func buildAuthMiddlewares(serverName string, authServer *oauth.AuthorizationServ
 	return mws
 }
 
-func buildStdioSSEServer(serverName, baseURL string, sessionManager *client.StdioSessionManager) (*mcpserver.SSEServer, *mcpserver.MCPServer, error) {
+func buildStdioSSEServer(serverName, baseURL string, sessionManager *client.StdioSessionManager) (*mcpserver.SSEServer, *mcpserver.StreamableHTTPServer, *mcpserver.MCPServer, error) {
 	hooks := &mcpserver.Hooks{}
 	currentServerName := serverName
 
@@ -587,5 +590,9 @@ func buildStdioSSEServer(serverName, baseURL string, sessionManager *client.Stdi
 		mcpserver.WithBaseURL(baseURL),
 	)
 
-	return sseServer, mcpServer, nil
+	// Registers sessions on initialize, firing the same hooks; MCPHandler puts
+	// the session handler into the request context just like for SSE.
+	streamableServer := mcpserver.NewStreamableHTTPServer(mcpServer)
+
+	return sseServer, streamableServer, mcpServer, nil
 }

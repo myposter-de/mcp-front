@@ -325,6 +325,11 @@ func (s *StdioSession) GetClient() *Client {
 	return s.client
 }
 
+// Context is cancelled when the session is removed
+func (s *StdioSession) Context() context.Context {
+	return s.ctx
+}
+
 // DiscoverAndRegisterCapabilities discovers and registers capabilities from the stdio process
 func (s *StdioSession) DiscoverAndRegisterCapabilities(
 	ctx context.Context,
