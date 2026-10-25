@@ -89,7 +89,9 @@ func formatUserToken(storedToken *storage.StoredToken, auth *config.UserAuthenti
 	if storedToken.Type == storage.TokenTypeOAuth && storedToken.OAuthData != nil {
 		token := storedToken.OAuthData.AccessToken
 		if auth.TokenFormat != "" && auth.TokenFormat != "{{token}}" {
-			return strings.ReplaceAll(auth.TokenFormat, "{{token}}", token)
+			// {{refreshToken}} lets long-lived backends refresh access tokens themselves
+			formatted := strings.ReplaceAll(auth.TokenFormat, "{{refreshToken}}", storedToken.OAuthData.RefreshToken)
+			return strings.ReplaceAll(formatted, "{{token}}", token)
 		}
 		return token
 	}

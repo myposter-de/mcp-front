@@ -97,7 +97,8 @@ func (c *ServiceOAuthClient) StartOAuthFlow(
 	}
 
 	// Generate authorization URL
-	authURL := oauth2Config.AuthCodeURL(state, oauth2.AccessTypeOffline)
+	// prompt=consent: Google only returns a refresh token on first consent otherwise
+	authURL := oauth2Config.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.SetAuthURLParam("prompt", "consent"))
 
 	log.LogInfoWithFields("service_oauth", "Starting OAuth flow", map[string]any{
 		"service":  serviceName,
