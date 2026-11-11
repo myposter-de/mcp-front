@@ -91,6 +91,7 @@ func (h *MCPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if userToken != "" {
 		serverConfig = serverConfig.ApplyUserToken(userToken)
 	}
+	serverConfig = serverConfig.ApplyUserEmail(userEmail)
 
 	if serverConfig.TransportType == config.MCPClientTypeStreamable && !serverConfig.ReexposeSSE {
 		switch r.Method {

@@ -636,3 +636,12 @@ func TestReexposeSSE_ParsingAndFrontend(t *testing.T) {
 		assert.Contains(t, err.Error(), "reexposeSSE is only valid")
 	})
 }
+
+func TestApplyUserEmail(t *testing.T) {
+	c := &MCPClientConfig{Env: map[string]string{"MCP_USER_EMAIL": "{{userEmail}}", "OTHER": "x"}}
+	result := c.ApplyUserEmail("jane@example.com")
+	assert.Equal(t, "jane@example.com", result.Env["MCP_USER_EMAIL"])
+	assert.Equal(t, "x", result.Env["OTHER"])
+	assert.Equal(t, "{{userEmail}}", c.Env["MCP_USER_EMAIL"])
+	assert.Same(t, c, c.ApplyUserEmail(""))
+}

@@ -596,6 +596,20 @@ func (c *MCPClientConfig) ApplyUserToken(userToken string) *MCPClientConfig {
 	return &result
 }
 
+// ApplyUserEmail returns a copy with {{userEmail}} in env values replaced by the
+// authenticated user's email, so a stdio backend can authorize per user.
+func (c *MCPClientConfig) ApplyUserEmail(email string) *MCPClientConfig {
+	if email == "" || c.Env == nil {
+		return c
+	}
+	result := *c
+	result.Env = make(map[string]string, len(c.Env))
+	for key, value := range c.Env {
+		result.Env[key] = strings.ReplaceAll(value, "{{userEmail}}", email)
+	}
+	return &result
+}
+
 // UnmarshalJSON implements custom unmarshaling for ServiceAuth
 func (s *ServiceAuth) UnmarshalJSON(data []byte) error {
 	// Use type alias to avoid recursion
