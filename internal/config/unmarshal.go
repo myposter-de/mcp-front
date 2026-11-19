@@ -596,18 +596,45 @@ func (c *MCPClientConfig) ApplyUserToken(userToken string) *MCPClientConfig {
 	return &result
 }
 
-// ApplyUserEmail returns a copy with {{userEmail}} in env values replaced by the
-// authenticated user's email, so a stdio backend can authorize per user.
+// userEmailPlaceholder is replaced by the authenticated user's email.
+const userEmailPlaceholder = "{{userEmail}}"
+
+// ApplyUserEmail returns a copy with {{userEmail}} in env and header values
+// replaced by the authenticated user's email, so a backend can authorize per user.
+// Without an email, entries that use the placeholder are dropped (fail closed)
+// rather than sending the literal template as if it were an identity.
 func (c *MCPClientConfig) ApplyUserEmail(email string) *MCPClientConfig {
-	if email == "" || c.Env == nil {
+	if !usesUserEmail(c.Env) && !usesUserEmail(c.Headers) {
 		return c
 	}
 	result := *c
-	result.Env = make(map[string]string, len(c.Env))
-	for key, value := range c.Env {
-		result.Env[key] = strings.ReplaceAll(value, "{{userEmail}}", email)
-	}
+	result.Env = substituteUserEmail(c.Env, email)
+	result.Headers = substituteUserEmail(c.Headers, email)
 	return &result
+}
+
+func usesUserEmail(m map[string]string) bool {
+	for _, value := range m {
+		if strings.Contains(value, userEmailPlaceholder) {
+			return true
+		}
+	}
+	return false
+}
+
+func substituteUserEmail(m map[string]string, email string) map[string]string {
+	if m == nil {
+		return nil
+	}
+	out := make(map[string]string, len(m))
+	for key, value := range m {
+		if !strings.Contains(value, userEmailPlaceholder) {
+			out[key] = value
+		} else if email != "" {
+			out[key] = strings.ReplaceAll(value, userEmailPlaceholder, email)
+		}
+	}
+	return out
 }
 
 // UnmarshalJSON implements custom unmarshaling for ServiceAuth

@@ -494,6 +494,8 @@ func (s *Server) createConn(ctx context.Context, userEmail, backendName string) 
 		}
 	}
 
+	effectiveConfig = effectiveConfig.ApplyUserEmail(userEmail)
+
 	transport, err := s.createTransport(effectiveConfig)
 	if err != nil {
 		return nil, fmt.Errorf("creating transport: %w", err)

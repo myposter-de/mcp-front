@@ -133,3 +133,10 @@ func TestCopyRequestHeaders(t *testing.T) {
 		assert.Equal(t, "custom-value", dst.Get("X-Custom"))
 	})
 }
+
+func TestCopyRequestHeadersStripsUserEmailHeader(t *testing.T) {
+	dst := http.Header{}
+	copyRequestHeaders(dst, http.Header{"X-Mcp-User-Email": []string{"x@example.com"}, "User-Agent": []string{"ua"}})
+	assert.Empty(t, dst.Get("X-MCP-User-Email"))
+	assert.Equal(t, "ua", dst.Get("User-Agent"))
+}

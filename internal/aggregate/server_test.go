@@ -1013,3 +1013,43 @@ func TestMaxConnsPerUserZeroUnlimited(t *testing.T) {
 		require.NoError(t, err, "connection to %s should succeed with unlimited pool", name)
 	}
 }
+
+func TestUserEmailHeaderPerUserConnection(t *testing.T) {
+	var mu sync.Mutex
+	seen := map[string]string{}
+	var calls int
+
+	factory := func(conf *config.MCPClientConfig) (client.MCPClientInterface, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		calls++
+		seen[fmt.Sprintf("conn%d", calls)] = conf.Headers["X-MCP-User-Email"]
+		return &mockTransport{tools: []mcp.Tool{{Name: "query"}}}, nil
+	}
+
+	srv := NewServer(ServerConfig{
+		Name:          "test-aggregate",
+		TransportType: config.MCPClientTypeSSE,
+		Backends: map[string]*config.MCPClientConfig{
+			"bff": {
+				TransportType: config.MCPClientTypeStreamable,
+				URL:           "http://localhost/bff",
+				Headers:       map[string]string{"X-MCP-User-Email": "{{userEmail}}"},
+			},
+		},
+		Discovery:       &config.DiscoveryConfig{Timeout: 5 * time.Second, CacheTTL: 60 * time.Second},
+		CreateTransport: factory,
+		BaseURL:         "http://localhost:8080",
+	})
+	srv.Start()
+	t.Cleanup(func() { _ = srv.Shutdown(context.Background()) })
+
+	for _, email := range []string{"alice@test.com", "bob@test.com", "alice@test.com"} {
+		_, err := srv.getOrCreateConn(context.Background(), email, "bff")
+		require.NoError(t, err)
+	}
+
+	assert.Equal(t, 2, calls, "alice's connection is reused, bob gets his own")
+	assert.ElementsMatch(t, []string{"alice@test.com", "bob@test.com"}, []string{seen["conn1"], seen["conn2"]})
+	assert.Equal(t, "{{userEmail}}", srv.backends["bff"].Headers["X-MCP-User-Email"])
+}
