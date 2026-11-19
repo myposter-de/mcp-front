@@ -91,6 +91,10 @@ func (h *MCPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if userToken != "" {
 		serverConfig = serverConfig.ApplyUserToken(userToken)
 	}
+	if serverConfig.UsesUserEmail() && userEmail == "" {
+		jsonwriter.WriteUnauthorized(w, "authenticated user required")
+		return
+	}
 	serverConfig = serverConfig.ApplyUserEmail(userEmail)
 
 	if serverConfig.TransportType == config.MCPClientTypeStreamable && !serverConfig.ReexposeSSE {

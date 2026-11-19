@@ -596,15 +596,16 @@ func (c *MCPClientConfig) ApplyUserToken(userToken string) *MCPClientConfig {
 	return &result
 }
 
-// userEmailPlaceholder is replaced by the authenticated user's email.
 const userEmailPlaceholder = "{{userEmail}}"
 
-// ApplyUserEmail returns a copy with {{userEmail}} in env and header values
-// replaced by the authenticated user's email, so a backend can authorize per user.
-// Without an email, entries that use the placeholder are dropped (fail closed)
-// rather than sending the literal template as if it were an identity.
+// UsesUserEmail reports whether env or headers contain {{userEmail}}.
+func (c *MCPClientConfig) UsesUserEmail() bool {
+	return containsUserEmail(c.Env) || containsUserEmail(c.Headers)
+}
+
+// ApplyUserEmail returns a copy with {{userEmail}} substituted; with no email the entries are dropped, never sent as a literal.
 func (c *MCPClientConfig) ApplyUserEmail(email string) *MCPClientConfig {
-	if !usesUserEmail(c.Env) && !usesUserEmail(c.Headers) {
+	if !c.UsesUserEmail() {
 		return c
 	}
 	result := *c
@@ -613,7 +614,7 @@ func (c *MCPClientConfig) ApplyUserEmail(email string) *MCPClientConfig {
 	return &result
 }
 
-func usesUserEmail(m map[string]string) bool {
+func containsUserEmail(m map[string]string) bool {
 	for _, value := range m {
 		if strings.Contains(value, userEmailPlaceholder) {
 			return true

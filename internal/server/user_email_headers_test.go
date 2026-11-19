@@ -116,15 +116,13 @@ func TestClientSuppliedIdentityHeadersNeverReachBackend(t *testing.T) {
 		"Authorization":    "Bearer attacker",
 		"Cookie":           "session=abc",
 	})
-	// Without an authenticated email the configured header is dropped, so the
-	// inbound one must not slip through either.
-	serve(h, http.MethodPost, "/svc/mcp", "", map[string]string{
+	rec := serve(h, http.MethodPost, "/svc/mcp", "", map[string]string{
 		"X-MCP-User-Email": "admin@example.com",
 		"Authorization":    "Bearer attacker",
 	})
+	assert.Equal(t, http.StatusUnauthorized, rec.Code, "no authenticated user: refused, nothing forwarded")
 
 	got := seen()
-	require.Len(t, got, 2)
+	require.Len(t, got, 1)
 	assert.Equal(t, seenHeaders{email: "alice@example.com", auth: "Bearer service-key"}, got[0])
-	assert.Equal(t, seenHeaders{auth: "Bearer service-key"}, got[1])
 }

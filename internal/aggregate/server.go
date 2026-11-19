@@ -494,6 +494,9 @@ func (s *Server) createConn(ctx context.Context, userEmail, backendName string) 
 		}
 	}
 
+	if effectiveConfig.UsesUserEmail() && userEmail == "" {
+		return nil, fmt.Errorf("authenticated user required for backend %s", backendName)
+	}
 	effectiveConfig = effectiveConfig.ApplyUserEmail(userEmail)
 
 	transport, err := s.createTransport(effectiveConfig)

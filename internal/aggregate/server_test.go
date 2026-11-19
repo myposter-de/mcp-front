@@ -1053,3 +1053,25 @@ func TestUserEmailHeaderPerUserConnection(t *testing.T) {
 	assert.ElementsMatch(t, []string{"alice@test.com", "bob@test.com"}, []string{seen["conn1"], seen["conn2"]})
 	assert.Equal(t, "{{userEmail}}", srv.backends["bff"].Headers["X-MCP-User-Email"])
 }
+
+func TestUserEmailBackendRefusesAnonymousConn(t *testing.T) {
+	var created atomic.Int32
+	srv := NewServer(ServerConfig{
+		Name:          "test-aggregate",
+		TransportType: config.MCPClientTypeSSE,
+		Backends: map[string]*config.MCPClientConfig{
+			"bff": {TransportType: config.MCPClientTypeStreamable, URL: "http://localhost/bff", Headers: map[string]string{"X-MCP-User-Email": "{{userEmail}}"}},
+		},
+		Discovery: &config.DiscoveryConfig{Timeout: 5 * time.Second, CacheTTL: 60 * time.Second},
+		CreateTransport: func(conf *config.MCPClientConfig) (client.MCPClientInterface, error) {
+			created.Add(1)
+			return &mockTransport{}, nil
+		},
+		BaseURL: "http://localhost:8080",
+	})
+	t.Cleanup(func() { _ = srv.Shutdown(context.Background()) })
+
+	_, err := srv.getOrCreateConn(context.Background(), "", "bff")
+	require.Error(t, err)
+	assert.Zero(t, created.Load())
+}
