@@ -14,9 +14,9 @@
     "format:check": "prettier --check \"src/**/*.{astro,md,mdx,js,ts,json}\""
   },
   "dependencies": {
-    "@astrojs/starlight": "^0.37.6",
-    "astro": "^5.18.0",
-    "sharp": "^0.34.5"
+    "@astrojs/starlight": "^0.43.1",
+    "astro": "^7.4.13",
+    "sharp": "^0.35.5"
   },
   "devDependencies": {
     "gh-pages": "^6.3.0",
