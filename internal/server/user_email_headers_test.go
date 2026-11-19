@@ -1,7 +1,9 @@
 package server
 
 import (
+	"bytes"
 	"context"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -125,4 +127,33 @@ func TestClientSuppliedIdentityHeadersNeverReachBackend(t *testing.T) {
 	got := seen()
 	require.Len(t, got, 1)
 	assert.Equal(t, seenHeaders{email: "alice@example.com", auth: "Bearer service-key"}, got[0])
+}
+
+func TestDebugLogsNeverContainConfiguredHeaderValues(t *testing.T) {
+	var buf bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+
+	for _, tc := range []struct {
+		transport config.MCPClientType
+		path      string
+		suffix    string
+	}{
+		{config.MCPClientTypeStreamable, "/svc/mcp", ""},
+		{config.MCPClientTypeSSE, "/svc/message", "/sse"},
+		{config.MCPClientTypeSSE, "/svc/sse", "/sse"},
+	} {
+		backend, _ := recordingBackend(t)
+		h := createTestMCPHandler("svc", userEmailConfig(backend.URL+tc.suffix, tc.transport))
+		method := http.MethodPost
+		if tc.path == "/svc/sse" {
+			method = http.MethodGet
+		}
+		serve(h, method, tc.path, "alice@example.com", nil)
+	}
+
+	out := buf.String()
+	require.Contains(t, out, "X-MCP-User-Email", "header names are still logged")
+	assert.NotContains(t, out, "service-key")
 }

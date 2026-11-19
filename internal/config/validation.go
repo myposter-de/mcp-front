@@ -547,6 +547,12 @@ func validateAggregateServerStructure(name string, srv map[string]any, allServer
 				continue
 			}
 			if refSrv, ok := refServer.(map[string]any); ok {
+				if usesUserEmailTemplate(refSrv) {
+					result.Errors = append(result.Errors, ValidationError{
+						Path:    fmt.Sprintf("%s.servers[%d]", path, i),
+						Message: fmt.Sprintf("aggregate cannot reference server '%s': {{userEmail}} in env/headers is not supported on aggregate servers (shared tool cache, anonymous sessions)", ref),
+					})
+				}
 				if tt, ok := refSrv["transportType"].(string); ok && tt == "inline" {
 					result.Errors = append(result.Errors, ValidationError{
 						Path:    fmt.Sprintf("%s.servers[%d]", path, i),
@@ -957,4 +963,16 @@ func validateSessionsConfig(sessions map[string]any, result *ValidationResult) {
 			}
 		}
 	}
+}
+
+func usesUserEmailTemplate(srv map[string]any) bool {
+	for _, field := range []string{"env", "headers"} {
+		values, _ := srv[field].(map[string]any)
+		for _, v := range values {
+			if str, ok := v.(string); ok && strings.Contains(str, userEmailPlaceholder) {
+				return true
+			}
+		}
+	}
+	return false
 }

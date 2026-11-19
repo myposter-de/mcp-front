@@ -395,7 +395,7 @@ func (h *MCPHandler) forwardMessageToBackend(ctx context.Context, w http.Respons
 		"server":     h.serverName,
 		"backendURL": backendURL,
 		"method":     r.Method,
-		"headers":    config.Headers,
+		"headers":    log.HeaderNames(config.Headers),
 	})
 
 	client := &http.Client{

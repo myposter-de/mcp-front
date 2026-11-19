@@ -780,6 +780,28 @@ func TestValidateFile_AggregateServer(t *testing.T) {
 			wantErrors: nil,
 		},
 		{
+			name: "aggregate_rejects_user_email_backend",
+			config: `{
+				"version": "v0.0.1-DEV_EDITION",
+				"proxy": {
+					"baseURL": "http://localhost:8080",
+					"addr": ":8080"
+				},
+				"mcpServers": {
+					"bff": {
+						"transportType": "streamable-http",
+						"url": "http://bff/mcp",
+						"headers": {"X-MCP-User-Email": "{{userEmail}}"}
+					},
+					"mcp": {
+						"type": "aggregate",
+						"servers": ["bff"]
+					}
+				}
+			}`,
+			wantErrors: []string{"{{userEmail}} in env/headers is not supported on aggregate servers"},
+		},
+		{
 			name: "server_name_with_dot",
 			config: `{
 				"version": "v0.0.1-DEV_EDITION",
