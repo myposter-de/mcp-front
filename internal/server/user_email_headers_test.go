@@ -33,6 +33,11 @@ func recordingBackend(t *testing.T) (*httptest.Server, func() []seenHeaders) {
 			cookie: r.Header.Get("Cookie"),
 		})
 		mu.Unlock()
+		if r.Method == http.MethodGet {
+			w.Header().Set("Content-Type", "text/event-stream")
+			_, _ = w.Write([]byte("data: {}\n\n"))
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"jsonrpc":"2.0","id":1,"result":{}}`))
 	}))
@@ -74,11 +79,14 @@ func TestUserEmailHeaderReachesBackendPerUser(t *testing.T) {
 	cases := []struct {
 		name      string
 		transport config.MCPClientType
+		method    string
 		path      string
 		urlSuffix string
 	}{
-		{"streamable POST", config.MCPClientTypeStreamable, "/svc/mcp", ""},
-		{"sse message passthrough", config.MCPClientTypeSSE, "/svc/message", "/sse"},
+		{"streamable POST", config.MCPClientTypeStreamable, http.MethodPost, "/svc/mcp", ""},
+		{"streamable GET", config.MCPClientTypeStreamable, http.MethodGet, "/svc/mcp", ""},
+		{"sse message passthrough", config.MCPClientTypeSSE, http.MethodPost, "/svc/message", "/sse"},
+		{"sse GET", config.MCPClientTypeSSE, http.MethodGet, "/svc/sse", "/sse"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -91,7 +99,7 @@ func TestUserEmailHeaderReachesBackendPerUser(t *testing.T) {
 				wg.Add(1)
 				go func(email string) {
 					defer wg.Done()
-					rec := serve(h, http.MethodPost, tc.path, email, nil)
+					rec := serve(h, tc.method, tc.path, email, map[string]string{"Accept": "text/event-stream"})
 					assert.Equal(t, http.StatusOK, rec.Code)
 				}(users[i%2])
 			}
