@@ -598,12 +598,10 @@ func (c *MCPClientConfig) ApplyUserToken(userToken string) *MCPClientConfig {
 
 const userEmailPlaceholder = "{{userEmail}}"
 
-// UsesUserEmail reports whether env or headers contain {{userEmail}}.
 func (c *MCPClientConfig) UsesUserEmail() bool {
 	return containsUserEmail(c.Env) || containsUserEmail(c.Headers)
 }
 
-// ApplyUserEmail returns a copy with {{userEmail}} substituted; with no email the entries are dropped, never sent as a literal.
 func (c *MCPClientConfig) ApplyUserEmail(email string) *MCPClientConfig {
 	if !c.UsesUserEmail() {
 		return c

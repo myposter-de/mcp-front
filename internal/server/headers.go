@@ -11,7 +11,7 @@ func copyRequestHeaders(dst, src http.Header) {
 			"Keep-Alive", "Transfer-Encoding", "TE", "Trailer",
 			"Proxy-Authorization", "Proxy-Authenticate",
 			"Authorization", "Cookie",
-			"X-Mcp-User-Email", // identity is set by config only
+			"X-Mcp-User-Email",
 			"Accept-Encoding":
 			continue
 		}

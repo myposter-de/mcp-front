@@ -182,7 +182,6 @@ func LogTraceWithFields(component, message string, fields map[string]any) {
 	}
 }
 
-// HeaderNames returns the sorted header names; values may be credentials and must not be logged.
 func HeaderNames(headers map[string]string) []string {
 	return slices.Sorted(maps.Keys(headers))
 }
