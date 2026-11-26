@@ -91,6 +91,10 @@ func (h *MCPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if userToken != "" {
 		serverConfig = serverConfig.ApplyUserToken(userToken)
 	}
+	if serverConfig.UsesUserEmail() && userEmail == "" {
+		jsonwriter.WriteUnauthorized(w, "authenticated user required")
+		return
+	}
 	serverConfig = serverConfig.ApplyUserEmail(userEmail)
 
 	if serverConfig.TransportType == config.MCPClientTypeStreamable && !serverConfig.ReexposeSSE {
@@ -391,7 +395,7 @@ func (h *MCPHandler) forwardMessageToBackend(ctx context.Context, w http.Respons
 		"server":     h.serverName,
 		"backendURL": backendURL,
 		"method":     r.Method,
-		"headers":    config.Headers,
+		"headers":    log.HeaderNames(config.Headers),
 	})
 
 	client := &http.Client{

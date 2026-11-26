@@ -638,10 +638,43 @@ func TestReexposeSSE_ParsingAndFrontend(t *testing.T) {
 }
 
 func TestApplyUserEmail(t *testing.T) {
-	c := &MCPClientConfig{Env: map[string]string{"MCP_USER_EMAIL": "{{userEmail}}", "OTHER": "x"}}
-	result := c.ApplyUserEmail("jane@example.com")
-	assert.Equal(t, "jane@example.com", result.Env["MCP_USER_EMAIL"])
-	assert.Equal(t, "x", result.Env["OTHER"])
-	assert.Equal(t, "{{userEmail}}", c.Env["MCP_USER_EMAIL"])
-	assert.Same(t, c, c.ApplyUserEmail(""))
+	t.Run("substitutes env and headers without mutating the shared config", func(t *testing.T) {
+		c := &MCPClientConfig{
+			Env:     map[string]string{"MCP_USER_EMAIL": "{{userEmail}}", "OTHER": "x"},
+			Headers: map[string]string{"X-MCP-User-Email": "{{userEmail}}", "Authorization": "Bearer k"},
+		}
+		result := c.ApplyUserEmail("jane@example.com")
+		assert.Equal(t, "jane@example.com", result.Env["MCP_USER_EMAIL"])
+		assert.Equal(t, "x", result.Env["OTHER"])
+		assert.Equal(t, "jane@example.com", result.Headers["X-MCP-User-Email"])
+		assert.Equal(t, "Bearer k", result.Headers["Authorization"])
+		assert.Equal(t, "{{userEmail}}", c.Env["MCP_USER_EMAIL"])
+		assert.Equal(t, "{{userEmail}}", c.Headers["X-MCP-User-Email"])
+	})
+
+	t.Run("headers only config", func(t *testing.T) {
+		c := &MCPClientConfig{Headers: map[string]string{"X-MCP-User-Email": "{{userEmail}}"}}
+		result := c.ApplyUserEmail("a@example.com")
+		assert.Equal(t, "a@example.com", result.Headers["X-MCP-User-Email"])
+		assert.Nil(t, result.Env)
+	})
+
+	t.Run("empty email drops placeholder entries instead of leaking the literal", func(t *testing.T) {
+		c := &MCPClientConfig{
+			Env:     map[string]string{"MCP_USER_EMAIL": "{{userEmail}}", "OTHER": "x"},
+			Headers: map[string]string{"X-MCP-User-Email": "{{userEmail}}", "Authorization": "Bearer k"},
+		}
+		result := c.ApplyUserEmail("")
+		assert.NotContains(t, result.Env, "MCP_USER_EMAIL")
+		assert.NotContains(t, result.Headers, "X-MCP-User-Email")
+		assert.Equal(t, "x", result.Env["OTHER"])
+		assert.Equal(t, "Bearer k", result.Headers["Authorization"])
+		assert.Equal(t, "{{userEmail}}", c.Headers["X-MCP-User-Email"])
+	})
+
+	t.Run("config without placeholder is returned as is", func(t *testing.T) {
+		c := &MCPClientConfig{Headers: map[string]string{"Authorization": "Bearer k"}}
+		assert.Same(t, c, c.ApplyUserEmail("a@example.com"))
+		assert.Same(t, c, c.ApplyUserEmail(""))
+	})
 }

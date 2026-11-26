@@ -42,7 +42,7 @@ func forwardSSEToBackend(ctx context.Context, w http.ResponseWriter, r *http.Req
 	log.LogDebugWithFields("sse_proxy", "Forwarding SSE request to backend", map[string]any{
 		"backendURL": backendURL,
 		"method":     r.Method,
-		"headers":    config.Headers,
+		"headers":    log.HeaderNames(config.Headers),
 	})
 
 	// Send the request

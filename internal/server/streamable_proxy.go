@@ -46,7 +46,7 @@ func forwardStreamablePostToBackend(ctx context.Context, w http.ResponseWriter, 
 	log.LogDebugWithFields("streamable_proxy", "Forwarding POST to backend", map[string]any{
 		"backendURL": config.URL,
 		"method":     r.Method,
-		"headers":    config.Headers,
+		"headers":    log.HeaderNames(config.Headers),
 	})
 
 	client := &http.Client{
