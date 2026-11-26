@@ -3,7 +3,7 @@ module github.com/stainless-api/mcp-front
 go 1.26.0
 
 require (
-	cloud.google.com/go/firestore v1.29.0
+	cloud.google.com/go/firestore v1.29.2
 	github.com/aws/aws-sdk-go-v2 v1.47.4
 	github.com/aws/aws-sdk-go-v2/config v1.33.10
 	github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue v1.21.15
