@@ -11,7 +11,7 @@ require (
 	github.com/mark3labs/mcp-go v0.43.2
 	github.com/stretchr/testify v1.12.1
 	golang.org/x/crypto v0.58.0
-	golang.org/x/oauth2 v0.37.0
+	golang.org/x/oauth2 v0.38.0
 	golang.org/x/sync v0.24.0
 	google.golang.org/api v0.308.0
 	google.golang.org/grpc v1.84.0
